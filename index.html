@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three-Tier Network Configuration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        h2 {
+            color: #555;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        .section {
+            background-color: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .code-container {
+            position: relative;
+        }
+        pre {
+            background-color: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 0;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .copy-btn:hover {
+            background-color: #0056b3;
+        }
+        .note {
+            background-color: #e7f3ff;
+            padding: 10px;
+            border-left: 5px solid #007bff;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Updated Network Configuration for Three-Tier Architecture with Redundancy</h1>
+    <p>This page contains the updated Huawei device configurations for 2 core switches, 2 routers, and 1 access switch, creating a redundant three-tier network topology.</p>
+
+    <div class="note">
+        <strong>Physical Connections:</strong> Router1 GE0/0/0 ↔ Core1 GE0/0/1, Router1 GE0/0/1 ↔ Core2 GE1/0/2, Router2 GE0/0/0 ↔ Core1 GE1/0/3, Router1 GE0/0/2 ↔ Router2 GE0/0/1 (trunk), Core1 GE1/0/2 ↔ Access1 GE0/0/1, Core2 GE1/0/3 ↔ Access2 GE0/0/1. VLANs 10 and 20. Core switches handle DHCP with VRRP.
+    </div>
+
+    <div class="section">
+        <h2>Step 1: Core Switch 1 Configuration</h2>
+        <p>Apply this configuration to Core Switch 1. It sets up VLANs, VRRP for redundancy, DHCP, and trunk ports.</p>
+        <div class="code-container">
+        <pre>
+system-view
+
+# Create VLAN 10
+vlan 10
+quit
+
+# Create VLAN 20
+vlan 20
+quit
+
+# Configure VLAN interface for VLAN 10 with VRRP
+interface Vlanif10
+ip address 192.168.10.2 255.255.255.0
+vrrp vrid 1 virtual-ip 192.168.10.1
+vrrp vrid 1 priority 150
+quit
+
+# Configure VLAN interface for VLAN 20 with VRRP
+interface Vlanif20
+ip address 192.168.20.2 255.255.255.0
+vrrp vrid 1 virtual-ip 192.168.20.1
+vrrp vrid 1 priority 150
+quit
+
+# Enable DHCP
+dhcp enable
+
+# Create DHCP pool for VLAN 10
+ip pool LAN10
+network 192.168.10.0 mask 255.255.255.0
+gateway-list 192.168.10.1
+dns-list 8.8.8.8
+quit
+
+# Create DHCP pool for VLAN 20
+ip pool VLAN20
+network 192.168.20.0 mask 255.255.255.0
+gateway-list 192.168.20.1
+dns-list 8.8.8.8
+quit
+
+# Apply DHCP to VLAN interfaces
+interface Vlanif10
+dhcp select global
+quit
+
+interface Vlanif20
+dhcp select global
+quit
+
+# Configure trunk port to Router1 (GigabitEthernet0/0/1)
+interface GigabitEthernet0/0/1
+port link-type trunk
+port trunk allow-pass vlan 10 20
+quit
+
+# Configure trunk port to Router2 (GigabitEthernet1/0/3)
+interface GigabitEthernet1/0/3
+port link-type trunk
+port trunk allow-pass vlan 10 20
+quit
+
+# Configure trunk port to Access Switch 1 (GigabitEthernet1/0/2)
+interface GigabitEthernet1/0/2
+port link-type trunk
+port trunk allow-pass vlan 10 20
+quit
+
+# Add static route to Core2 VLAN20 via Router1
+ip route 192.168.20.0 255.255.255.0 192.168.20.10
+
+# ARP is enabled by default on VLAN interfaces
+
+# Save configuration
+save
+        </pre>
+        <button class="copy-btn" onclick="copyToClipboard(this.previousElementSibling.textContent)">Copy Code</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Step 2: Core Switch 2 Configuration</h2>
+        <p>Apply this configuration to Core Switch 2. Similar to Core Switch 1 but with lower VRRP priority.</p>
+        <div class="code-container">
+        <pre>
+system-view
+
+# Enable IP routing
+ip routing
+
+# Create VLAN 10
+vlan 10
+quit
+
+# Create VLAN 20
+vlan 20
+quit
+
+# Configure VLAN interface for VLAN 10 with VRRP
+interface Vlanif10
+ip address 192.168.10.3 255.255.255.0
+vrrp vrid 1 virtual-ip 192.168.10.1
+vrrp vrid 1 priority 100
+quit
+
+# Configure VLAN interface for VLAN 20 with VRRP
+interface Vlanif20
+ip address 192.168.20.3 255.255.255.0
+vrrp vrid 1 virtual-ip 192.168.20.1
+vrrp vrid 1 priority 100
+quit
+
+# Enable DHCP
+dhcp enable
+
+# Create DHCP pool for VLAN 10
+ip pool LAN10
+network 192.168.10.0 mask 255.255.255.0
+gateway-list 192.168.10.1
+dns-list 8.8.8.8
+quit
+
+# Create DHCP pool for VLAN 20
+ip pool VLAN20
+network 192.168.20.0 mask 255.255.255.0
+gateway-list 192.168.20.1
+dns-list 8.8.8.8
+quit
+
+# Apply DHCP to VLAN interfaces
+interface Vlanif10
+dhcp select global
+quit
+
+interface Vlanif20
+dhcp select global
+quit
+
+# Configure trunk port to Router1 (GigabitEthernet1/0/1)
+interface GigabitEthernet1/0/1
+port link-type trunk
+port trunk allow-pass vlan 10 20
+quit
+
+# Configure trunk port to Access Switch 2 (GigabitEthernet1/0/3)
+interface GigabitEthernet1/0/3
+port link-type trunk
+port trunk allow-pass vlan 10 20
+quit
+
+# Add static route to Core1 VLAN10 via Router1
+ip route 192.168.10.0 255.255.255.0 192.168.10.11
+
+# ARP is enabled by default on VLAN interfaces
+
+# Save configuration
+save
+        </pre>
+        <button class="copy-btn" onclick="copyToClipboard(this.previousElementSibling.textContent)">Copy Code</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Step 3: Router 1 Configuration Update</h2>
+        <p>Update Router 1 by removing old sub-interfaces and DHCP, then configure trunks to both core switches.</p>
+        <div class="code-container">
+        <pre>
+system-view
+
+# Remove old sub-interfaces (if they exist)
+undo interface Ethernet0/0/0.10
+undo interface Ethernet0/0/1.20
+
+# Remove DHCP pools
+undo ip pool LAN10
+undo ip pool VLAN20
+
+# Disable DHCP (if no longer needed elsewhere)
+undo dhcp enable
+
+# Remove old trunk configuration
+interface Ethernet0/0/1
+undo link-type trunk
+undo trunk allow-pass vlan 10 20
+quit
+
+# Configure subinterfaces for VLAN 10 on Ethernet0/0/0 (connected to Core Switch 1)
+interface Ethernet0/0/0.10
+dot1q termination vid 10
+ip address 192.168.10.10 255.255.255.0
+arp broadcast enable
+quit
+
+# Configure subinterfaces for VLAN 20 on Ethernet0/0/0
+interface Ethernet0/0/0.20
+dot1q termination vid 20
+ip address 192.168.20.10 255.255.255.0
+arp broadcast enable
+quit
+
+# Configure subinterfaces for VLAN 10 on Ethernet0/0/1 (connected to Core Switch 2)
+interface Ethernet0/0/1.10
+dot1q termination vid 10
+ip address 192.168.10.11 255.255.255.0
+arp broadcast enable
+quit
+
+# Configure subinterfaces for VLAN 20 on Ethernet0/0/1
+interface Ethernet0/0/1.20
+dot1q termination vid 20
+ip address 192.168.20.11 255.255.255.0
+arp broadcast enable
+quit
+
+
+# Save configuration
+save
+        </pre>
+        <button class="copy-btn" onclick="copyToClipboard(this.previousElementSibling.textContent)">Copy Code</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Step 4: Router 2 Configuration Update</h2>
+        <p>Update Router 2 with subinterfaces for VLAN routing.</p>
+        <div class="code-container">
+        <pre>
+system-view
+
+# Remove old sub-interfaces (if they exist)
+undo interface Ethernet0/0/0.10
+undo interface Ethernet0/0/1.20
+
+# Remove DHCP pools
+undo ip pool LAN10
+undo ip pool VLAN20
+
+# Disable DHCP (if no longer needed elsewhere)
+undo dhcp enable
+
+# Configure subinterfaces for VLAN 10 on Ethernet0/0/0 (connected to Core Switch 1)
+interface Ethernet0/0/0.10
+dot1q termination vid 10
+ip address 192.168.10.12 255.255.255.0
+arp broadcast enable
+quit
+
+# Configure subinterfaces for VLAN 20 on Ethernet0/0/0
+interface Ethernet0/0/0.20
+dot1q termination vid 20
+ip address 192.168.20.12 255.255.255.0
+arp broadcast enable
+quit
+
+# Configure subinterfaces for VLAN 10 on Ethernet0/0/2 (connected to Core Switch 2)
+interface Ethernet0/0/2.10
+dot1q termination vid 10
+ip address 192.168.10.13 255.255.255.0
+arp broadcast enable
+quit
+
+# Configure subinterfaces for VLAN 20 on Ethernet0/0/2
+interface Ethernet0/0/2.20
+dot1q termination vid 20
+ip address 192.168.20.13 255.255.255.0
+arp broadcast enable
+quit
+
+# Save configuration
+save
+        </pre>
+        <button class="copy-btn" onclick="copyToClipboard(this.previousElementSibling.textContent)">Copy Code</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Step 5: Access Switch 1 Configuration</h2>
+        <p>Configure Access Switch 1 connected to Core Switch 1.</p>
+        <div class="code-container">
+        <pre>
+system-view
+
+# Enable IP routing
+ip routing
+
+# Create VLAN 10
+vlan 10
+quit
+
+# Create VLAN 20
+vlan 20
+quit
+
+# Configure trunk port to Core Switch 1 (GigabitEthernet0/0/1)
+interface GigabitEthernet0/0/1
+port link-type trunk
+port trunk allow-pass vlan 10 20
+quit
+
+# Configure access ports for VLAN 10 (example: ports 2-10)
+port-group 1
+group-member GigabitEthernet0/0/2 to GigabitEthernet0/0/10
+port link-type access
+port default vlan 10
+quit
+
+# Configure access ports for VLAN 20 (example: ports 11-20)
+port-group 2
+group-member GigabitEthernet0/0/11 to GigabitEthernet0/0/20
+port link-type access
+port default vlan 20
+quit
+
+# Save configuration
+save
+        </pre>
+        <button class="copy-btn" onclick="copyToClipboard(this.previousElementSibling.textContent)">Copy Code</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Step 6: Access Switch 2 Configuration</h2>
+        <p>Configure Access Switch 2 connected to Core Switch 2.</p>
+        <div class="code-container">
+        <pre>
+system-view
+
+# Create VLAN 10
+vlan 10
+quit
+
+# Create VLAN 20
+vlan 20
+quit
+
+# Configure trunk port to Core Switch 2 (GigabitEthernet0/0/1)
+interface GigabitEthernet0/0/1
+port link-type trunk
+port trunk allow-pass vlan 10 20
+quit
+
+# Configure access ports for VLAN 10 (example: ports 2-10)
+port-group 1
+group-member GigabitEthernet0/0/2 to GigabitEthernet0/0/10
+port link-type access
+port default vlan 10
+quit
+
+# Configure access ports for VLAN 20 (example: ports 11-20)
+port-group 2
+group-member GigabitEthernet0/0/11 to GigabitEthernet0/0/20
+port link-type access
+port default vlan 20
+quit
+
+# Save configuration
+save
+        </pre>
+        <button class="copy-btn" onclick="copyToClipboard(this.previousElementSibling.textContent)">Copy Code</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Step 7: Verification</h2>
+        <ul>
+            <li>Verify trunk ports: Use <code>display interface GigabitEthernet0/0/x</code> on each device.</li>
+            <li>Check VLANs: Use <code>display vlan</code>.</li>
+            <li>Test DHCP: Connect a device to an access port and verify IP assignment.</li>
+            <li>Test connectivity: Ping between VLANs and external networks.</li>
+        </ul>
+    </div>
+
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                alert('Code copied to clipboard!');
+            }, function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        }
+    </script>
+</body>
+</html>
